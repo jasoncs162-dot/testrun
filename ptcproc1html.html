@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Procurement & Asset Management | Sync Pro</title>
+    <style>
+        :root {
+            --primary: #2563eb; --secondary: #64748b; --dark: #1e293b;
+            --light: #f8fafc; --success: #22c55e; --danger: #ef4444; --warn: #f59e0b;
+        }
+
+        body { font-family: 'Inter', sans-serif; margin: 0; background: #f1f5f9; color: var(--dark); display: flex; height: 100vh; overflow: hidden; }
+
+        /* SIDEBAR */
+        .sidebar { width: 260px; background: var(--dark); color: white; padding: 20px 10px; display: flex; flex-direction: column; gap: 8px; }
+        .sidebar h2 { font-size: 1rem; text-align: center; color: var(--primary); margin-bottom: 20px; text-transform: uppercase; border-bottom: 1px solid #334155; padding-bottom: 10px; }
+        .sidebar button {
+            text-align: left; padding: 12px 15px; border: none; background: transparent; color: #94a3b8;
+            cursor: pointer; border-radius: 8px; font-weight: 500; transition: 0.2s;
+        }
+        .sidebar button:hover { background: #334155; color: white; }
+        .sidebar button.active { background: var(--primary); color: white; }
+
+        /* MAIN CONTENT */
+        .main-content { flex: 1; padding: 25px; overflow-y: auto; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .section { display: none; animation: fadeIn 0.3s ease; }
+        
+        table { width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 0.85rem; }
+        th { background: #f8fafc; color: var(--secondary); padding: 10px; text-align: left; border-bottom: 2px solid #e2e8f0; }
+        td { padding: 8px; border-bottom: 1px solid #e2e8f0; }
+        input, select { width: 100%; padding: 8px; border: 1px solid #e2e8f0; border-radius: 4px; box-sizing: border-box; }
+        
+        .btn { padding: 8px 15px; border-radius: 6px; border: none; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+        .btn-sm { padding: 4px 8px; font-size: 0.75rem; margin-right: 4px; min-width: 50px; }
+        
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-success { background: var(--success); color: white; }
+        .btn-view { background: var(--secondary); color: white; }
+        .btn-edit { background: var(--warn); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+
+        .badge { background: var(--primary); color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; }
+        
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+    <h2>ASSET MANAGER</h2>
+    <button onclick="showSection('pr', this)" class="active">1. Purchase Requests</button>
+    <button onclick="showSection('abstract', this)">2. Abstract of Bids</button>
+    <button onclick="showSection('inventory', this)">3. Procured Inventory</button>
+</div>
+
+<div class="main-content">
+    
+    <div id="pr" class="section" style="display: block;">
+        <div class="card">
+            <h3>New Purchase Request</h3>
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 15px;">
+                <input type="text" id="prNo" placeholder="PR No">
+                <input type="text" id="purpose" placeholder="Purpose">
+                <input type="text" id="requestedBy" placeholder="Requested By">
+                <input type="date" id="prDate">
+            </div>
+            <table id="itemsTable">
+                <thead><tr><th>Item</th><th width="80">Qty</th><th width="100">Unit</th><th width="40"></th></tr></thead>
+                <tbody></tbody>
+            </table>
+            <button class="btn" style="background:#ddd" onclick="addItemRow()">+ Add Item</button>
+            <button class="btn btn-primary" onclick="savePR()">Save PR</button>
+        </div>
+
+        <div class="card">
+            <h3>PR History</h3>
+            <table id="prLogTable">
+                <thead><tr><th>Date</th><th>PR No.</th><th>Purpose</th><th>Requested By</th><th>Actions</th></tr></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="abstract" class="section">
+        <div class="card">
+            <h2>ABSTRACT OF BIDS</h2>
+            <select id="prSelector" onchange="loadAbstract(this.value)" style="margin-bottom: 15px;">
+                <option value="">-- Choose PR Number --</option>
+            </select>
+
+            <div id="abstractContent" style="display:none;">
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px;">
+                    <input type="text" id="supp1" placeholder="Supplier 1" onkeyup="runCalcs()">
+                    <input type="text" id="supp2" placeholder="Supplier 2" onkeyup="runCalcs()">
+                    <input type="text" id="supp3" placeholder="Supplier 3" onkeyup="runCalcs()">
+                </div>
+                <table id="abstractTable">
+                    <thead><tr><th>Item Details</th><th>S1 Price</th><th>S2 Price</th><th>S3 Price</th><th>Budget</th><th>Action</th></tr></thead>
+                    <tbody id="abstractBody"></tbody>
+                </table>
+                <button class="btn btn-success" onclick="finalizeToInventory()">Finalize Transaction</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>Abstract Transaction History</h3>
+            <table>
+                <thead><tr><th>PR No.</th><th>Items</th><th>Winner</th><th>Total Cost</th><th>Actual Budget</th><th>Actions</th></tr></thead>
+                <tbody id="abstractHistoryBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="inventory" class="section">
+        <div class="card">
+            <h3>Procured Items Inventory</h3>
+            <div style="margin-bottom: 15px;"><input type="text" id="searchInv" placeholder="Search..." onkeyup="loadInventory()"></div>
+            <table id="inventoryTable">
+                <thead><tr><th>Date</th><th>PR No.</th><th>Item Description</th><th>Qty</th><th>Office</th><th>Officer</th><th>Action</th></tr></thead>
+                <tbody id="inventoryBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- NAVIGATION ---
+    function showSection(id, btn) {
+        document.querySelectorAll(".section").forEach(sec => sec.style.display="none");
+        document.querySelectorAll(".sidebar button").forEach(b => b.classList.remove("active"));
+        document.getElementById(id).style.display="block";
+        btn.classList.add("active");
+        if(id === 'abstract') { updatePRDropdown(); loadAbstractHistory(); }
+        if(id === 'inventory') loadInventory();
+        if(id === 'pr') loadPRLog();
+    }
+
+    // --- SHARED DATA HANDLERS ---
+    function getData(key) { return JSON.parse(localStorage.getItem(key)) || []; }
+    function setData(key, data) { localStorage.setItem(key, JSON.stringify(data)); }
+
+    // --- PR LOGIC ---
+    function addItemRow() {
+        let row = document.querySelector("#itemsTable tbody").insertRow();
+        row.innerHTML = `<td><input type="text" class="p-name"></td><td><input type="number" class="p-qty"></td><td><input type="text" class="p-unit"></td><td><button onclick="this.parentElement.parentElement.remove()">✕</button></td>`;
+    }
+
+    function savePR() {
+        let prNo = document.getElementById("prNo").value;
+        if(!prNo) return alert("PR No Required");
+        let items = [];
+        document.querySelectorAll("#itemsTable tbody tr").forEach(r => {
+            items.push({ id: Date.now()+Math.random(), name: r.querySelector(".p-name").value, qty: parseFloat(r.querySelector(".p-qty").value) || 0, unit: r.querySelector(".p-unit").value });
+        });
+        let list = getData("pro_prs");
+        list.push({ prNo, purpose: document.getElementById("purpose").value, requestedBy: document.getElementById("requestedBy").value, items, date: document.getElementById("prDate").value });
+        list.sort((a,b) => new Date(b.date) - new Date(a.date));
+        setData("pro_prs", list);
+        location.reload();
+    }
+
+    function loadPRLog() {
+        let list = getData("pro_prs");
+        document.querySelector("#prLogTable tbody").innerHTML = list.map((d, i) => `<tr>
+            <td>${d.date}</td><td><span class="badge">${d.prNo}</span></td><td>${d.purpose}</td><td>${d.requestedBy}</td>
+            <td>
+                <button class="btn btn-sm btn-view" onclick="viewGeneric('PR: ${d.prNo}', '${d.purpose}')">View</button>
+                <button class="btn btn-sm btn-edit" onclick="editPR(${i})">Edit</button>
+                <button class="btn btn-sm btn-danger" onclick="deleteGlobalPR('${d.prNo}')">Delete</button>
+            </td>
+        </tr>`).join('');
+    }
+
+    function deleteGlobalPR(prNo) {
+        if(!confirm(`Delete PR ${prNo}? This will remove it from Abstract and Inventory too.`)) return;
+        setData("pro_prs", getData("pro_prs").filter(x => x.prNo !== prNo));
+        setData("pro_abs_hist", getData("pro_abs_hist").filter(x => x.prNo !== prNo));
+        setData("pro_inv", getData("pro_inv").filter(x => x.prNo !== prNo));
+        loadPRLog();
+    }
+
+    function editPR(index) {
+        let list = getData("pro_prs");
+        let newPurp = prompt("Update Purpose:", list[index].purpose);
+        if(newPurp) { list[index].purpose = newPurp; setData("pro_prs", list); loadPRLog(); }
+    }
+
+    // --- ABSTRACT LOGIC ---
+    function updatePRDropdown() {
+        let list = getData("pro_prs");
+        document.getElementById("prSelector").innerHTML = '<option value="">-- Choose PR --</option>' + list.map(d => `<option value="${d.prNo}">${d.prNo}</option>`).join('');
+    }
+
+    function loadAbstract(prNo) {
+        if(!prNo) return document.getElementById("abstractContent").style.display="none";
+        document.getElementById("abstractContent").style.display="block";
+        let pr = getData("pro_prs").find(d => d.prNo === prNo);
+        document.getElementById("abstractBody").innerHTML = pr.items.map((item, idx) => `
+            <tr class="item-row" data-qty="${item.qty}" data-id="${item.id}">
+                <td>${item.name}</td>
+                <td><input type="number" class="v1" oninput="runCalcs()"></td>
+                <td><input type="number" class="v2" oninput="runCalcs()"></td>
+                <td><input type="number" class="v3" oninput="runCalcs()"></td>
+                <td class="budget-col">0.00</td>
+                <td>
+                    <button class="btn btn-sm btn-view" onclick="alert('${item.name}')">View</button>
+                    <button class="btn btn-sm btn-edit" onclick="alert('Edit calculation in row')">Edit</button>
+                    <button class="btn btn-sm btn-danger" onclick="this.parentElement.parentElement.remove()">Del</button>
+                </td>
+            </tr>`).join('');
+    }
+
+    function runCalcs() {
+        document.querySelectorAll(".item-row").forEach(row => {
+            let qty = parseFloat(row.dataset.qty);
+            let vals = [parseFloat(row.querySelector(".v1").value)||0, parseFloat(row.querySelector(".v2").value)||0, parseFloat(row.querySelector(".v3").value)||0].filter(v => v > 0);
+            if(vals.length > 0) row.querySelector(".budget-col").innerText = ((qty * Math.min(...vals)) + 50).toFixed(2);
+        });
+    }
+
+    function finalizeToInventory() {
+        let prNo = document.getElementById("prSelector").value;
+        let pr = getData("pro_prs").find(d => d.prNo === prNo);
+        let budget = 0; document.querySelectorAll(".budget-col").forEach(td => budget += parseFloat(td.innerText));
+        
+        let absHist = getData("pro_abs_hist");
+        absHist.push({ prNo, winner: document.getElementById("supp1").value, totalCost: (budget*0.95).toFixed(2), actualBudget: budget.toFixed(2), items: pr.items.map(i=>i.name).join(", ") });
+        setData("pro_abs_hist", absHist);
+
+        let office = prompt("Office:"), officer = prompt("Officer:");
+        let inv = getData("pro_inv");
+        pr.items.forEach(item => { inv.push({ id: Date.now()+Math.random(), date: pr.date, prNo: pr.prNo, name: item.name, qty: item.qty, office, officer }); });
+        setData("pro_inv", inv);
+        alert("Finalized!");
+        loadAbstractHistory();
+    }
+
+    function loadAbstractHistory() {
+        document.getElementById("abstractHistoryBody").innerHTML = getData("pro_abs_hist").map((h, i) => `<tr>
+            <td>${h.prNo}</td><td>${h.items}</td><td>${h.winner}</td><td>${h.totalCost}</td><td>${h.actualBudget}</td>
+            <td>
+                <button class="btn btn-sm btn-view" onclick="viewGeneric('Abstract ${h.prNo}', '${h.winner}')">View</button>
+                <button class="btn btn-sm btn-edit" onclick="alert('Edit finalized record')">Edit</button>
+                <button class="btn btn-sm btn-danger" onclick="deleteAbsEntry(${i})">Delete</button>
+            </td>
+        </tr>`).join('');
+    }
+
+    function deleteAbsEntry(i) {
+        let h = getData("pro_abs_hist"); h.splice(i, 1); setData("pro_abs_hist", h); loadAbstractHistory();
+    }
+
+    // --- INVENTORY LOGIC ---
+    function loadInventory() {
+        let query = document.getElementById("searchInv").value.toLowerCase();
+        document.getElementById("inventoryBody").innerHTML = getData("pro_inv")
+            .filter(d => d.name.toLowerCase().includes(query) || d.prNo.toLowerCase().includes(query))
+            .map((d, i) => `<tr>
+                <td>${d.date}</td><td><span class="badge">${d.prNo}</span></td><td>${d.name}</td><td>${d.qty}</td><td>${d.office}</td><td>${d.officer}</td>
+                <td>
+                    <button class="btn btn-sm btn-view" onclick="viewGeneric('${d.name}', 'Officer: ${d.officer}')">View</button>
+                    <button class="btn btn-sm btn-edit" onclick="editInv(${i})">Edit</button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteInv(${i})">Delete</button>
+                </td>
+            </tr>`).join('');
+    }
+
+    function deleteInv(i) {
+        let list = getData("pro_inv"); list.splice(i, 1); setData("pro_inv", list); loadInventory();
+    }
+
+    function editInv(i) {
+        let list = getData("pro_inv");
+        let name = prompt("Update Item Name:", list[i].name);
+        if(name) { list[i].name = name; setData("pro_inv", list); loadInventory(); }
+    }
+
+    function viewGeneric(title, body) { alert(`${title}\n\n${body}`); }
+
+    window.onload = () => { loadPRLog(); loadInventory(); };
+</script>
+</body>
+</html>
